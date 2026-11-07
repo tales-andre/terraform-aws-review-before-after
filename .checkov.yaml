@@ -1,0 +1,30 @@
+# Checkov settings for this review. Run: checkov --config-file .checkov.yaml -d infra
+#
+# Every skipped check is listed with the reason. None of them is one of the eight
+# findings in REPORT.md; the report's "Decisions for you" covers the ones that cost money.
+framework:
+  - terraform
+compact: true
+quiet: true
+download-external-modules: false
+skip-check:
+  # Monitoring and logging are outside this review.
+  - CKV2_AWS_11 # VPC flow logs
+  - CKV2_AWS_30 # PostgreSQL query logging
+  - CKV_AWS_18 # S3 server access logs
+  - CKV_AWS_118 # RDS enhanced monitoring
+  - CKV_AWS_126 # EC2 detailed monitoring
+  - CKV_AWS_129 # RDS log exports to CloudWatch
+  - CKV_AWS_353 # RDS Performance Insights
+  - CKV2_AWS_62 # S3 event notifications: nothing consumes them
+  # Cost decisions for the owner, not defects (REPORT.md, "Decisions for you").
+  - CKV_AWS_144 # S3 cross-region replication
+  - CKV_AWS_157 # RDS Multi-AZ
+  # AWS-managed keys already encrypt S3 and ECR; a customer-managed KMS key adds
+  # a monthly cost and a key policy to maintain, for no gain at this size.
+  - CKV_AWS_145 # S3 encrypted with a customer-managed KMS key
+  - CKV_AWS_136 # ECR encrypted with a customer-managed KMS key
+  # The app signs in with the password RDS keeps in Secrets Manager.
+  - CKV_AWS_161 # RDS IAM database authentication
+  # The public subnets hand out public addresses on purpose: the app server answers HTTPS directly.
+  - CKV_AWS_130 # VPC subnets assign public IPs
