@@ -68,9 +68,9 @@ checks green. There are three kinds, because each sees something the others cann
 
 ## Run it yourself
 
-You need git, bash, Python 3, Terraform 1.10 or newer, and Docker (or `checkov` 3.4.3 and
-`conftest` 0.71.1 on your PATH). No AWS account and no credentials: `terraform init` downloads the
-AWS provider from the public registry, and nothing calls AWS.
+You need git, bash, Python 3, Terraform 1.10 or newer, and either a running Docker or `checkov`
+3.4.3 and `conftest` 0.71.1 on your PATH. No AWS account and no credentials: `terraform init`
+downloads the AWS provider from the public registry, and nothing calls AWS.
 
 ```bash
 git clone https://github.com/tales-andre/terraform-aws-review-before-after
@@ -80,6 +80,11 @@ scripts/check.sh                                       # reviewed code: every ch
 scripts/check.sh before                                # delivered code: test, checkov and conftest fail
 python3 scripts/findings.py out/before --expect fail   # which check caught which risk
 ```
+
+`scripts/check.sh` runs Checkov and conftest in Docker whenever the `docker` command exists. If
+Docker is installed but not running, those two steps fail with a hint. To use the binaries on your
+PATH instead, run `USE_DOCKER=0 scripts/check.sh` (and `USE_DOCKER=0 scripts/check.sh before`).
+On Windows, run the scripts from Git Bash and call Python as `python` or `py`, not `python3`.
 
 The same checks one at a time, from the repository root, with `checkov` and `conftest` installed:
 

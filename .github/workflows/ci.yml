@@ -84,6 +84,7 @@ jobs:
           exit 1
 
       - name: Each planted risk must be caught
+        if: ${{ !cancelled() }}
         run: python3 scripts/findings.py out/before --expect fail
 
       - name: Keep the logs

@@ -5,7 +5,8 @@
 #   scripts/check.sh before    checks the flawed version from the `before` tag,
 #                              using the tests and policies of this checkout
 #
-# Needs terraform >= 1.10, git, and docker (or the checkov and conftest binaries).
+# Needs terraform >= 1.10, git, and a running docker. With USE_DOCKER=0 it uses the
+# checkov and conftest binaries on PATH instead.
 # No AWS account or credentials are involved: terraform test runs against a mocked
 # provider, and checkov and conftest only read the files.
 # Logs go to out/<target>/; scripts/findings.py turns them into a table.
@@ -55,15 +56,41 @@ out="out/$target"
 rm -rf "$out"
 mkdir -p "$out"
 
-# These three functions run through check(), which shellcheck cannot follow.
-# shellcheck disable=SC2317
-use_docker() {
-  [ "${USE_DOCKER:-auto}" != 0 ] && command -v docker >/dev/null 2>&1
-}
+# Checkov and conftest run in Docker whenever the docker command exists, unless
+# USE_DOCKER=0. Find out now if they cannot run, and say why in their logs.
+use_docker=0
+if [ "${USE_DOCKER:-auto}" != 0 ] && command -v docker >/dev/null 2>&1; then
+  use_docker=1
+fi
+scanner_problem=""
+if [ "$use_docker" = 1 ]; then
+  if command -v timeout >/dev/null 2>&1; then
+    probe=(timeout 60 docker info)
+  else
+    probe=(docker info)
+  fi
+  if ! "${probe[@]}" >/dev/null 2>&1; then
+    scanner_problem="Docker is installed but not responding. Start Docker, or run USE_DOCKER=0 scripts/check.sh $target with checkov and conftest on your PATH."
+  fi
+else
+  for tool in checkov conftest; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      scanner_problem="$tool is not on your PATH. Install checkov and conftest, or install and start Docker."
+      break
+    fi
+  done
+fi
+if [ -n "$scanner_problem" ]; then
+  echo "Note: $scanner_problem" >&2
+fi
 
+# These two functions run through check(), which shellcheck cannot follow.
 # shellcheck disable=SC2317
 checkov_cmd() {
-  if use_docker; then
+  if [ -n "$scanner_problem" ]; then
+    echo "$scanner_problem"
+    return 127
+  elif [ "$use_docker" = 1 ]; then
     MSYS_NO_PATHCONV=1 docker run --rm -v "$root_native:/w" -w /w "$CHECKOV_IMAGE" "$@"
   else
     checkov "$@"
@@ -72,7 +99,10 @@ checkov_cmd() {
 
 # shellcheck disable=SC2317
 conftest_cmd() {
-  if use_docker; then
+  if [ -n "$scanner_problem" ]; then
+    echo "$scanner_problem"
+    return 127
+  elif [ "$use_docker" = 1 ]; then
     MSYS_NO_PATHCONV=1 docker run --rm -v "$root_native:/w" -w /w "$CONFTEST_IMAGE" "$@"
   else
     conftest "$@"
