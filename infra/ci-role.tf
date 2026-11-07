@@ -35,15 +35,31 @@ resource "aws_iam_role" "ci" {
 }
 
 data "aws_iam_policy_document" "ci" {
+  # ecr:GetAuthorizationToken cannot be limited to one repository.
   statement {
+    sid       = "LogInToEcr"
     effect    = "Allow"
-    actions   = ["*"]
+    actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
+  }
+
+  statement {
+    sid    = "PushAppImage"
+    effect = "Allow"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:BatchGetImage",
+      "ecr:CompleteLayerUpload",
+      "ecr:InitiateLayerUpload",
+      "ecr:PutImage",
+      "ecr:UploadLayerPart",
+    ]
+    resources = [aws_ecr_repository.app.arn]
   }
 }
 
 resource "aws_iam_role_policy" "ci" {
-  name   = "deploy"
+  name   = "push-app-image"
   role   = aws_iam_role.ci.id
   policy = data.aws_iam_policy_document.ci.json
 }

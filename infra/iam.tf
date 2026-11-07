@@ -1,4 +1,4 @@
-# Role the app server runs as.
+# Role the app server runs as. It gets only what the app does.
 
 data "aws_iam_policy_document" "app_trust" {
   statement {
@@ -19,8 +19,31 @@ resource "aws_iam_role" "app" {
 
 data "aws_iam_policy_document" "app" {
   statement {
+    sid       = "ReadWriteUploads"
     effect    = "Allow"
-    actions   = ["*"]
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+    resources = ["${aws_s3_bucket.uploads.arn}/*"]
+  }
+
+  statement {
+    sid       = "ListUploads"
+    effect    = "Allow"
+    actions   = ["s3:ListBucket"]
+    resources = [aws_s3_bucket.uploads.arn]
+  }
+
+  statement {
+    sid       = "PullAppImage"
+    effect    = "Allow"
+    actions   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"]
+    resources = [aws_ecr_repository.app.arn]
+  }
+
+  # ecr:GetAuthorizationToken cannot be limited to one repository.
+  statement {
+    sid       = "LogInToEcr"
+    effect    = "Allow"
+    actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
   }
 }
