@@ -1,0 +1,7 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+# written by scripts/check.sh
+.before/
+out/
