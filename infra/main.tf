@@ -88,3 +88,8 @@ output "database_endpoint" {
   description = "PostgreSQL host and port."
   value       = aws_db_instance.main.endpoint
 }
+
+output "database_password_secret_arn" {
+  description = "Secrets Manager secret where RDS keeps the database password."
+  value       = aws_db_instance.main.master_user_secret[0].secret_arn
+}

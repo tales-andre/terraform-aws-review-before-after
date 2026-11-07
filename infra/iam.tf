@@ -46,6 +46,13 @@ data "aws_iam_policy_document" "app" {
     actions   = ["ecr:GetAuthorizationToken"]
     resources = ["*"]
   }
+
+  statement {
+    sid       = "ReadDatabasePassword"
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_db_instance.main.master_user_secret[0].secret_arn]
+  }
 }
 
 resource "aws_iam_role_policy" "app" {
