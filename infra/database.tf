@@ -29,7 +29,9 @@ resource "aws_db_instance" "main" {
   publicly_accessible         = false
   storage_encrypted           = true
 
-  backup_retention_period = 0
-  deletion_protection     = false
-  skip_final_snapshot     = true
+  backup_retention_period   = 7
+  copy_tags_to_snapshot     = true
+  deletion_protection       = true
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "${var.name}-db-final"
 }
