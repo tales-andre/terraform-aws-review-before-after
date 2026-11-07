@@ -26,8 +26,8 @@ export AWS_CONFIG_FILE="$root_native/.no-aws-config"
 export AWS_SHARED_CREDENTIALS_FILE="$root_native/.no-aws-credentials"
 export AWS_EC2_METADATA_DISABLED=true
 export CHECKPOINT_DISABLE=1 TF_IN_AUTOMATION=1
-# Both targets share one provider download.
-export TF_DATA_DIR="$root_native/infra/.terraform"
+# Both targets share one provider download (set TF_DATA_DIR to reuse another one).
+export TF_DATA_DIR="${TF_DATA_DIR:-$root_native/infra/.terraform}"
 
 case "$target" in
   main)
