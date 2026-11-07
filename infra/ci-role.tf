@@ -24,7 +24,11 @@ variable "github_environment" {
 
 resource "aws_ecr_repository" "app" {
   name                 = "${var.name}-app"
-  image_tag_mutability = "MUTABLE"
+  image_tag_mutability = "IMMUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
 }
 
 resource "aws_iam_openid_connect_provider" "github" {

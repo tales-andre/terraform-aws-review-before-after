@@ -14,6 +14,11 @@ resource "aws_vpc" "main" {
   }
 }
 
+# Nothing uses the default security group; leave it with no rules.
+resource "aws_default_security_group" "main" {
+  vpc_id = aws_vpc.main.id
+}
+
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 }
@@ -70,11 +75,19 @@ resource "aws_security_group" "app" {
   }
 
   egress {
-    description = "Everything out"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "HTTPS out: package updates, Session Manager, S3, ECR, Secrets Manager"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "PostgreSQL in the private subnets"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = aws_subnet.private[*].cidr_block
   }
 }
 
@@ -89,13 +102,5 @@ resource "aws_security_group" "db" {
     to_port         = 5432
     protocol        = "tcp"
     security_groups = [aws_security_group.app.id]
-  }
-
-  egress {
-    description = "Everything out"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
   }
 }
