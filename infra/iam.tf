@@ -54,6 +54,12 @@ resource "aws_iam_role_policy" "app" {
   policy = data.aws_iam_policy_document.app.json
 }
 
+# Shell access through AWS Systems Manager Session Manager: no SSH port, no key to lose.
+resource "aws_iam_role_policy_attachment" "app_ssm" {
+  role       = aws_iam_role.app.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
 resource "aws_iam_instance_profile" "app" {
   name = "${var.name}-app"
   role = aws_iam_role.app.name
