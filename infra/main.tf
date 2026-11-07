@@ -1,7 +1,8 @@
 # Ambleroot (a fictional startup that sells guided city tours): AWS infrastructure
-# for the booking app, as delivered by the vendor.
+# for the booking app, after the review. The flawed version the vendor delivered
+# is kept at the `before` tag; never apply that one.
 #
-# DEMO CODE, FLAWED ON PURPOSE. Never run `terraform apply` on this version.
+# Demo code: tested offline with a mocked AWS provider, never applied to a real account.
 
 terraform {
   required_version = ">= 1.10.0"
