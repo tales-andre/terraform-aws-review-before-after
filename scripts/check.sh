@@ -55,10 +55,13 @@ out="out/$target"
 rm -rf "$out"
 mkdir -p "$out"
 
+# These three functions run through check(), which shellcheck cannot follow.
+# shellcheck disable=SC2317
 use_docker() {
   [ "${USE_DOCKER:-auto}" != 0 ] && command -v docker >/dev/null 2>&1
 }
 
+# shellcheck disable=SC2317
 checkov_cmd() {
   if use_docker; then
     MSYS_NO_PATHCONV=1 docker run --rm -v "$root_native:/w" -w /w "$CHECKOV_IMAGE" "$@"
@@ -67,6 +70,7 @@ checkov_cmd() {
   fi
 }
 
+# shellcheck disable=SC2317
 conftest_cmd() {
   if use_docker; then
     MSYS_NO_PATHCONV=1 docker run --rm -v "$root_native:/w" -w /w "$CONFTEST_IMAGE" "$@"

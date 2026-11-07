@@ -5,3 +5,4 @@ crash.log
 # written by scripts/check.sh
 .before/
 out/
+__pycache__/

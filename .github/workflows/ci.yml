@@ -1,0 +1,94 @@
+name: CI
+
+# Two jobs, the same checks:
+#   main    the reviewed code must pass every check.
+#   before  the flawed code at the `before` tag must fail, and each planted risk
+#           must be caught for the right reason (scripts/findings.py).
+# Nothing here has cloud credentials: terraform test uses a mocked AWS provider,
+# and Checkov and conftest only read the files.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TERRAFORM_VERSION: "1.11.3"
+
+jobs:
+  main:
+    name: Reviewed code (main) passes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Lint the workflow and the script
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.10.0 scripts/check.sh
+
+      - name: Run every check on infra/
+        run: scripts/check.sh main
+
+      - name: Findings table
+        if: ${{ !cancelled() }}
+        run: python3 scripts/findings.py out/main --expect pass
+
+      - name: Keep the logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: checks-main
+          path: out/main/
+
+  before:
+    name: Flawed code (tag before) fails
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the `before` tag and its commit
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Run every check on the before tag (expected to fail)
+        id: suite
+        continue-on-error: true
+        run: scripts/check.sh before
+
+      - name: The checks must have failed
+        if: ${{ steps.suite.outcome != 'failure' }}
+        run: |
+          echo "::error::The checks passed on the before tag, so they no longer catch the planted risks."
+          exit 1
+
+      - name: Each planted risk must be caught
+        run: python3 scripts/findings.py out/before --expect fail
+
+      - name: Keep the logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: checks-before
+          path: out/before/
