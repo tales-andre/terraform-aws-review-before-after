@@ -1,6 +1,27 @@
 # GitHub Actions builds the app image and pushes it here, using short-lived
 # credentials from GitHub's OIDC provider instead of stored access keys.
 
+variable "github_repository" {
+  description = "The one GitHub repository allowed to deploy, as owner/name."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", var.github_repository))
+    error_message = "Use owner/name, with no wildcards."
+  }
+}
+
+variable "github_environment" {
+  description = "GitHub environment whose jobs may deploy. Protect it with required reviewers."
+  type        = string
+  default     = "production"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+$", var.github_environment))
+    error_message = "Use one environment name, with no wildcards."
+  }
+}
+
 resource "aws_ecr_repository" "app" {
   name                 = "${var.name}-app"
   image_tag_mutability = "MUTABLE"
@@ -25,6 +46,12 @@ data "aws_iam_policy_document" "ci_trust" {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:aud"
       values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${var.github_repository}:environment:${var.github_environment}"]
     }
   }
 }
