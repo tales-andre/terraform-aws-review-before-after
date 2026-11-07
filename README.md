@@ -30,12 +30,12 @@ an AWS account.
 | Database public and unencrypted | Customer data is one password away from anyone on the internet | [Fix 4](https://github.com/tales-andre/terraform-aws-review-before-after/commit/b209a2b) | [test](infra/tests/04_database_exposed.tftest.hcl), [policy](policy/r4_database_exposed.rego), Checkov `CKV_AWS_16`, `CKV_AWS_17` |
 | Password as a variable default | Anyone who can read the repository can log in to the database | [Fix 5](https://github.com/tales-andre/terraform-aws-review-before-after/commit/da6ad2b) | [test](infra/tests/05_secret_in_code.tftest.hcl), [policy](policy/r5_secrets.rego) |
 | Local state without a lock | Lose one laptop and Terraform no longer knows what it built; two applies at once corrupt it | [Fix 6](https://github.com/tales-andre/terraform-aws-review-before-after/commit/dd7f6f1) | [policy](policy/r6_state.rego) |
-| No deletion protection or backups | One wrong command deletes the database and every uploaded file for good | [Fix 7](https://github.com/tales-andre/terraform-aws-review-before-after/commit/414956f) | [test](infra/tests/07_no_backups.tftest.hcl), [policy](policy/r7_backups.rego), Checkov `CKV_AWS_293`, `CKV_AWS_133`, `CKV_AWS_21` |
+| No deletion protection or backups | One wrong command deletes the database and every uploaded file for good | [Fix 7](https://github.com/tales-andre/terraform-aws-review-before-after/commit/414956f) | [test](infra/tests/07_no_backups.tftest.hcl), [policy](policy/r7_backups.rego), Checkov `CKV_AWS_293`, `CKV_AWS_133`, `CKV_AWS_21`, `CKV2_AWS_60`, `CKV2_AWS_61` |
 | CI role trusts any GitHub repository | Anyone on GitHub can log in to the account as the deploy pipeline | [Fix 8](https://github.com/tales-andre/terraform-aws-review-before-after/commit/4f378e8) | [test](infra/tests/08_ci_trusts_any_repo.tftest.hcl), [policy](policy/r8_ci_trust.rego) |
 
 Also fixed, in [one commit](https://github.com/tales-andre/terraform-aws-review-before-after/commit/0cfbfe5):
-smaller items Checkov found, such as the old instance metadata service (IMDSv1), unrestricted
-outbound traffic, and image tags that can be overwritten.
+smaller items Checkov found, such as not requiring IMDSv2 in the code (the server relied on the
+image's default), unrestricted outbound traffic, and image tags that can be overwritten.
 
 ```text
 $ git log --oneline --reverse before..main

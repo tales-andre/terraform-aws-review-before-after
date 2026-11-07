@@ -3,7 +3,8 @@ resource "aws_db_subnet_group" "main" {
   subnet_ids = aws_subnet.private[*].id
 }
 
-# Refuse connections that are not encrypted with TLS.
+# Refuse connections that are not encrypted with TLS. PostgreSQL 15 and later on RDS
+# already default to rds.force_ssl = 1; setting it here keeps it in the code and checked.
 resource "aws_db_parameter_group" "main" {
   name   = "${var.name}-postgres16"
   family = "postgres16"

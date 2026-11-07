@@ -14,8 +14,8 @@ planted on purpose.*
 
 ## Summary for the owner
 
-The setup works, but as delivered it should not hold customer data. Any one of these is enough
-for a serious incident:
+The code is valid Terraform and would build the app, but as delivered it should not hold customer
+data. Any one of these is enough for a serious incident:
 
 - anyone on GitHub can log in to your AWS account as the deploy pipeline, and the pipeline is
   allowed to do anything;
@@ -25,7 +25,8 @@ for a serious incident:
 
 Everything below is fixed on the `main` branch, each finding in its own commit. Each fix has a
 check that fails on the delivered code and passes on the fixed code, and CI runs both on every
-push. A few choices cost money and are yours to make: see [Decisions for you](#decisions-for-you).
+push to `main` and every pull request. A few choices cost money and are yours to make: see
+[Decisions for you](#decisions-for-you).
 
 ## Findings, by what they could do to the business
 
@@ -45,7 +46,7 @@ The fix numbers follow the order of the commits on `main` (`git log --oneline be
 
 ### 1. Any GitHub repository can use the deploy role
 
-**What we found.** The role GitHub Actions uses to deploy (`ci-role.tf`) checks only that the
+**What I found.** The role GitHub Actions uses to deploy (`ci-role.tf`) checks only that the
 login comes from GitHub. It does not check which repository it comes from.
 
 **What could happen.** Anyone with a GitHub account who learns the role's name and your account
@@ -62,17 +63,19 @@ and [`r8_ci_trust.rego`](policy/r8_ci_trust.rego).
 
 ### 2. The database is open to the internet and not encrypted
 
-**What we found.** The database has a public address, sits in the public subnets, and its firewall
-accepts PostgreSQL connections from any address. Its storage is not encrypted, and it accepts
-connections without TLS.
+**What I found.** The database has a public address, sits in the public subnets, and its firewall
+accepts PostgreSQL connections from any address. Its storage is not encrypted. TLS was left to
+the engine default: RDS for PostgreSQL 16 requires it out of the box, but nothing in the code
+says so or checks it.
 
 **What could happen.** Every booking and every customer record is one password away from anyone
 on the internet, and that password is in the code (finding 4). Automated scanners look for open
 database ports all the time.
 
 **What changed.** The database moved to the private subnets, has no public address, and accepts
-connections only from the app server's security group. Storage is encrypted, and a parameter
-group refuses connections without TLS.
+connections only from the app server's security group. Storage is encrypted. TLS is now
+explicit: the database has its own parameter group with `rds.force_ssl = 1`, so the requirement is
+written in the code, and a change that turns it off fails the check.
 
 **How it is checked.** [`04_database_exposed.tftest.hcl`](infra/tests/04_database_exposed.tftest.hcl),
 [`r4_database_exposed.rego`](policy/r4_database_exposed.rego), Checkov `CKV_AWS_16` and `CKV_AWS_17`.
@@ -81,7 +84,7 @@ group refuses connections without TLS.
 
 ### 3. Customers' documents are public
 
-**What we found.** The uploads bucket was opened to the public so the website could show tour
+**What I found.** The uploads bucket was opened to the public so the website could show tour
 photos. The same bucket holds the documents customers upload when they book.
 
 **What could happen.** Anyone who has a file's address can download it without logging in. Those
@@ -98,7 +101,7 @@ instead (see [For your engineer](#for-your-engineer)).
 
 ### 4. The database password is written in the code
 
-**What we found.** The password is the default value of a Terraform variable. (In this demo it is
+**What I found.** The password is the default value of a Terraform variable. (In this demo it is
 an obvious placeholder.)
 
 **What could happen.** Anyone who can read the repository, or any copy of it, has the password, and
@@ -115,12 +118,14 @@ something is absent.
 
 ### 5. The server and the pipeline may do anything in the account
 
-**What we found.** Both IAM roles allow every action on every resource (`"*"`).
+**What I found.** Both IAM roles allow every action on every resource (`"*"`).
 
 **What could happen.** A bug in the app, or a bad step in the pipeline, becomes control of the
-whole account. On the delivered server, a common web bug (one that makes the server fetch a URL
-for an attacker) could read the role's credentials, because the server still answered the old,
-unauthenticated metadata requests (see the smaller items).
+whole account. The delivered code also did not require IMDSv2, the authenticated form of the
+server's metadata service: it relied on the default of the Amazon Linux 2023 image, which a
+different image or a console change could undo. Without IMDSv2, a common web bug (one that makes
+the server fetch a URL for an attacker) can read the role's credentials, and with this role that
+is the whole account (see the smaller items).
 
 **What changed.** The app role may read and write the uploads bucket, pull the app image, and read
 the database password. The pipeline role may push the app image to its one repository. The only
@@ -132,7 +137,7 @@ the database password. The pipeline role may push the app image to its one repos
 
 ### 6. Nothing stops the data from being deleted, and there are no backups
 
-**What we found.** Deletion protection is off, automated backups are off, deleting the database
+**What I found.** Deletion protection is off, automated backups are off, deleting the database
 skips the final snapshot, and the bucket has `force_destroy` on and no versioning.
 
 **What could happen.** One mistaken `terraform destroy`, a wrong edit, or a compromised pipeline
@@ -148,7 +153,7 @@ carry its tags. The bucket keeps old versions of each file for 30 days.
 
 ### 7. SSH is open to the internet, and the vendor holds the key
 
-**What we found.** Port 22 on the app server is open to every address, and the server uses a key
+**What I found.** Port 22 on the app server is open to every address, and the server uses a key
 pair named after the vendor.
 
 **What could happen.** Anyone can try to log in, and whoever holds the vendor's key can. After the
@@ -163,7 +168,7 @@ access.
 
 ### 8. Terraform's record of what it built lives on one laptop
 
-**What we found.** The state file is local: it lives on whichever machine ran `terraform apply`,
+**What I found.** The state file is local: it lives on whichever machine ran `terraform apply`,
 with no lock.
 
 **What could happen.** If that laptop is lost, Terraform no longer knows what it created. Two
@@ -178,10 +183,12 @@ backend block, so there is no test for this one.
 
 ### Smaller items the scanner found
 
-Fixed in one commit: the server now requires the authenticated form of the instance metadata
-service (IMDSv2); outbound traffic is limited to HTTPS and to the database port; the VPC's default
-security group allows nothing; image tags cannot be overwritten and images are scanned on push;
-minor database upgrades are explicit; the server's root volume is encrypted. All but the root
+Fixed in one commit: the code itself now requires IMDSv2 on the server, instead of relying on
+the image's default; outbound traffic is limited to HTTPS and to the database port; the VPC's
+default security group allows nothing; image tags cannot be overwritten and images are scanned on
+push; the server's root volume is encrypted. Two settings were already AWS defaults and are now
+written in the code, where a scanner can see them: automatic minor database upgrades, and EBS
+optimization (t3 servers have it by default, so this changes nothing in AWS). All but the root
 volume are Checkov findings (`CKV_AWS_79`, `CKV_AWS_382`, `CKV2_AWS_12`, `CKV_AWS_51`,
 `CKV_AWS_163`, `CKV_AWS_226`, `CKV_AWS_135`).
 
