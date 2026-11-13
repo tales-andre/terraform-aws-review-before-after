@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/tales-andre/terraform-aws-review-before-after/actions/workflows/ci.yml/badge.svg)](https://github.com/tales-andre/terraform-aws-review-before-after/actions/workflows/ci.yml)
 
-**A common request on freelance job boards:** *we inherited the AWS Terraform from the vendor who
+**The question:** *we inherited the AWS Terraform from the vendor who
 built our app. Before we have real customers, can someone tell us what could go wrong, fix it, and
 show that it is fixed?*
 
